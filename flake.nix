@@ -13,8 +13,10 @@
     in {
       devShells.${system}.default =
         pkgs.mkShell {
-          buildInputs = [
-            pkgs.git
+            buildInputs = with pkgs; [
+                git
+                nodejs_23
+                pnpm
           ]; };
     };
 }
