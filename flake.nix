@@ -1,5 +1,5 @@
 {
-  description = "go-event-bus-flake";
+  description = "chill";
 
   inputs = { nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; };
 
