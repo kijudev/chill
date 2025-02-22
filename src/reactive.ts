@@ -70,7 +70,7 @@ function reactiveValue<T>(value: T): { value: T } {
             get(target, key, receiver) {
                 if (key !== "value") {
                     throw new Error(
-                        "REACTIVE -> A reactive object has to be accessed through the 'value' property.",
+                        "REACTIVE -> A reactive value has to be accessed through the 'value' property.",
                     );
                 }
 
@@ -81,7 +81,7 @@ function reactiveValue<T>(value: T): { value: T } {
             set(target, key, newValue, reveiver) {
                 if (key !== "value") {
                     throw new Error(
-                        "REACTIVE -> A reactive object has to be accessed through the 'value' property.",
+                        "REACTIVE -> A reactive value has to be accessed through the 'value' property.",
                     );
                 }
 
@@ -92,6 +92,37 @@ function reactiveValue<T>(value: T): { value: T } {
             },
         },
     );
+
+    registerReactiveObject(proxy);
+    return proxy;
+}
+
+function reactiveObject<T extends object>(obj: T): T {
+    const proxy = new Proxy(obj, {
+        get(target, key, receiver) {
+            if (!(key in target)) {
+                throw new Error(
+                    "REACTIVE -> No such property on reactive object",
+                );
+            }
+
+            trackDependencies(proxy);
+
+            return target[key];
+        },
+        set(target, key, newValue, reveiver) {
+            if (!(key in target)) {
+                throw new Error(
+                    "REACTIVE -> No such property on reactive object",
+                );
+            }
+
+            target[key] = newValue;
+            triggerDependencies(proxy);
+
+            return true;
+        },
+    });
 
     registerReactiveObject(proxy);
     return proxy;
@@ -123,14 +154,43 @@ function watch(effect: Effect) {
     __global__schedulerRunningEffect = null;
 }
 
-const count = reactiveValue(1);
-const count2 = reactiveValue(2);
+function derivedValue<T>(getter: () => T): { value: T } {
+    const obj = reactiveValue(getter());
+
+    watch(() => {
+        obj.value = getter();
+    });
+
+    return obj;
+}
+
+function derivedObject<T extends object>(getter: () => T): T {
+    const obj = reactiveObject(getter());
+
+    watch(() => {
+        const newObj = getter();
+
+        for (const [key, value] of Object.entries(newObj)) {
+            obj[key] = newObj[key];
+        }
+    });
+
+    return obj;
+}
+
+const count = reactiveValue(10);
+const countTwo = derivedValue(() => count.value * 2);
+
+const countObj = derivedObject(() => ({
+    count: count.value * countTwo.value,
+}));
 
 watch(() => {
-    console.log({ count: count.value, count2: count2.value });
+    console.log({ countTwo: countTwo.value });
 });
 
-sync(() => {
-    count.value += 1;
-    count2.value += 1;
+watch(() => {
+    console.log({ countObj: countObj.count });
 });
+
+count.value += 1;
